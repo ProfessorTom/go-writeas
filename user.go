@@ -1,6 +1,7 @@
 package writeas
 
 import (
+	"fmt"
 	"time"
 )
 
@@ -34,3 +35,24 @@ type (
 		Delinquent bool      `json:"is_delinquent"`
 	}
 )
+
+// GetPosts returns the posts for the currently authenticated user
+// Authentication is stored in c.token which sets the Authorization header
+func (c *Client) GetPosts() ([]Post, error) {
+	var posts []Post
+
+	env, err := c.get("me/posts", posts)
+
+	if err != nil {
+		return nil, err
+	}
+
+	var ok bool
+
+	if posts, ok = env.Data.([]Post); !ok {
+		return nil, fmt.Errorf("%v", posts)
+	}
+
+	return posts, nil
+
+}
