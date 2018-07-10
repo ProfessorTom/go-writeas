@@ -1,6 +1,7 @@
 package writeas
 
 import (
+	"bytes"
 	"fmt"
 	"testing"
 )
@@ -88,6 +89,45 @@ func CreateMultiplePosts(c *Client) (*[]PostParams, error) {
 	}
 
 	return pp, nil
+}
+
+func GetPostParamsFromPostArray(p *[]Post) *[]PostParams {
+	pp := make([]PostParams, len(*p))
+
+	for i := 0; i < len(*p); i++ {
+		params := PostParams{
+			Title:   (*p)[i].Title,
+			Content: (*p)[i].Content,
+			Font:    (*p)[i].Font,
+		}
+
+		fmt.Printf("\nparams: %#v\n", params)
+		pp[i] = params
+	}
+	return &pp
+}
+
+func ReverseSlice(epp *[]PostParams) {
+	for i, j := 0, len(*epp)-1; i < j; i, j = i+1, j-1 {
+		(*epp)[i], (*epp)[j] = (*epp)[j], (*epp)[i]
+	}
+
+	// fmt.Printf("reversed: %s", PrintSlice(epp))
+}
+
+func PrintSlice(pp *[]PostParams) string {
+	var buffer bytes.Buffer
+
+	for i := 0; i < len(*pp); i++ {
+		buffer.WriteString("Title: ")
+		buffer.WriteString((*pp)[i].Title + "\n")
+		// buffer.WriteString("\n")
+		buffer.WriteString("Content: ")
+		buffer.WriteString((*pp)[i].Content + "\n")
+		buffer.WriteString("\n")
+	}
+
+	return buffer.String()
 }
 
 func TestGetPostsWithNoPosts(t *testing.T) {
