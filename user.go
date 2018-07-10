@@ -54,5 +54,6 @@ func (c *Client) GetPosts() (*[]Post, error) {
 	}
 
 	return posts, nil
-
 }
+
+// TODO: Add example call and expected results
