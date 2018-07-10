@@ -106,3 +106,24 @@ func TestGetPostsWithNoPosts(t *testing.T) {
 		t.Errorf("expected a length of 0 but got: %d", len(*p))
 	}
 }
+
+func TestGetPostsWithPosts(t *testing.T) {
+	dwac, err := DeleteAllPosts()
+	if err != nil {
+		t.Errorf("%s", err)
+	}
+
+	pp, err := CreateMultiplePosts(dwac)
+	if err != nil {
+		t.Errorf("%s", err)
+	}
+
+	p, err := dwac.GetPosts()
+	if err != nil {
+		t.Errorf("failure to get posts: %s", err)
+	}
+
+	if len(*p) != len(*pp) {
+		t.Errorf("expected a length of %d but got a length of  %d", len(*pp), len(*p))
+	}
+}
