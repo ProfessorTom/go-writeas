@@ -41,7 +41,7 @@ type (
 func (c *Client) GetPosts() ([]Post, error) {
 	var posts []Post
 
-	env, err := c.get("me/posts", posts)
+	env, err := c.get("/me/posts", posts)
 
 	if err != nil {
 		return nil, err
