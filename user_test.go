@@ -167,3 +167,34 @@ func TestGetPostsWithPosts(t *testing.T) {
 		t.Errorf("expected a length of %d but got a length of  %d", len(*pp), len(*p))
 	}
 }
+
+func TestGetPostPostOrder(t *testing.T) {
+	dwac, err := DeleteAllPosts()
+	if err != nil {
+		t.Errorf("%s", err)
+	}
+
+	fmt.Println(dwac.token)
+
+	epp, err := CreateMultiplePosts(dwac)
+	if err != nil {
+		t.Errorf("%s", err)
+	}
+
+	posts, err := dwac.GetPosts()
+	if err != nil {
+		t.Errorf("failure to get posts: %s", err)
+	}
+
+	// fmt.Printf("epp: %s", PrintSlice(epp))
+	ReverseSlice(epp)
+
+	// fmt.Printf("epp: %s", PrintSlice(epp))
+	app := GetPostParamsFromPostArray(posts)
+	// fmt.Printf("app: %s", PrintSlice(app))
+
+	if PrintSlice(app) != PrintSlice(epp) {
+		t.Errorf("expected \n%s\nbut got %s\n", PrintSlice(epp), PrintSlice(app))
+	}
+
+}
