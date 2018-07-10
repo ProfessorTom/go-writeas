@@ -54,6 +54,42 @@ func DeleteAllPosts() (*Client, error) {
 	return dwac, nil
 }
 
+func CreateMultiplePosts(c *Client) (*[]PostParams, error) {
+	pp := &[]PostParams{
+		PostParams{
+			Title:   "Familar Song",
+			Content: "This is the song that never ends.",
+			Font:    "sans",
+		},
+		PostParams{
+			Title:   "Going around rocks",
+			Content: "Round the ragged rock, the ragged rascal ran.",
+			Font:    "sans",
+		},
+		PostParams{
+			Title:   "Girl on a Beach",
+			Content: "She sells seashells by the seashore.",
+			Font:    "sans",
+		},
+	}
+
+	count := len(*pp)
+	for i := 0; i < count; i++ {
+		p, err := c.CreatePost(&(*pp)[i])
+
+		if err != nil {
+			return nil, err
+		}
+
+		// kludge to ignore returned post
+		if p != nil {
+			continue
+		}
+	}
+
+	return pp, nil
+}
+
 func TestGetPostsWithNoPosts(t *testing.T) {
 
 	dwac, err := DeleteAllPosts()
