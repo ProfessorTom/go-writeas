@@ -42,8 +42,7 @@ func DeleteAllPosts() (*Client, error) {
 			// Delete post
 			err = dwac.DeletePost(&PostParams{
 				OwnedPostParams: OwnedPostParams{
-					ID:    (*p)[i].ID,
-					Token: dwac.token,
+					ID: (*p)[i].ID,
 				},
 			})
 			if err != nil {
