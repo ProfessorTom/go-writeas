@@ -18,6 +18,7 @@ type (
 		RTL       *bool     `json:"rtl"`
 		Listed    bool      `json:"listed"`
 		Created   time.Time `json:"created"`
+		Updated   time.Time `json:"updated"`
 		Title     string    `json:"title"`
 		Content   string    `json:"body"`
 		Views     int64     `json:"views"`
@@ -37,7 +38,8 @@ type (
 	// PostParams holds values for creating or updating a post.
 	PostParams struct {
 		// Parameters only for updating
-		OwnedPostParams
+		ID    string `json:"-"`
+		Token string `json:"token,omitempty"`
 
 		// Parameters for creating or updating
 		Title    string  `json:"title,omitempty"`
@@ -51,6 +53,20 @@ type (
 
 		// Parameters for collection posts
 		Collection string `json:"-"`
+	}
+
+	// PinnedPostParams holds values for pinning a post
+	PinnedPostParams struct {
+		ID       string `json:"id"`
+		Position int    `json:"position"`
+	}
+
+	// BatchPostResult contains the post-specific result as part of a larger
+	// batch operation.
+	BatchPostResult struct {
+		ID           string `json:"id,omitempty"`
+		Code         int    `json:"code,omitempty"`
+		ErrorMessage string `json:"error_msg,omitempty"`
 	}
 
 	// ClaimPostResult contains the post-specific result for a request to
@@ -86,7 +102,7 @@ func (c *Client) GetPost(id string) (*Post, error) {
 	} else if status == http.StatusGone {
 		return nil, fmt.Errorf("Post unpublished.")
 	}
-	return nil, fmt.Errorf("Problem getting post: %d. %v\n", status, err)
+	return nil, fmt.Errorf("Problem getting post: %d. %s\n", status, env.ErrorMessage)
 }
 
 // CreatePost publishes a new post, returning a user-friendly error if one comes
@@ -108,13 +124,13 @@ func (c *Client) CreatePost(sp *PostParams) (*Post, error) {
 	}
 
 	status := env.Code
-	if status == http.StatusCreated {
-		return p, nil
-	} else if status == http.StatusBadRequest {
-		return nil, fmt.Errorf("Bad request: %s", env.ErrorMessage)
-	} else {
-		return nil, fmt.Errorf("Problem getting post: %d. %v\n", status, err)
+	if status != http.StatusCreated {
+		if status == http.StatusBadRequest {
+			return nil, fmt.Errorf("Bad request: %s", env.ErrorMessage)
+		}
+		return nil, fmt.Errorf("Problem creating post: %d. %s\n", status, env.ErrorMessage)
 	}
+	return p, nil
 }
 
 // UpdatePost updates a published post with the given PostParams. See
@@ -132,14 +148,15 @@ func (c *Client) UpdatePost(sp *PostParams) (*Post, error) {
 	}
 
 	status := env.Code
-	if status == http.StatusOK {
-		return p, nil
-	} else if c.isNotLoggedIn(status) {
-		return nil, fmt.Errorf("Not authenticated.")
-	} else if status == http.StatusBadRequest {
-		return nil, fmt.Errorf("Bad request: %s", env.ErrorMessage)
+	if status != http.StatusOK {
+		if c.isNotLoggedIn(status) {
+			return nil, fmt.Errorf("Not authenticated.")
+		} else if status == http.StatusBadRequest {
+			return nil, fmt.Errorf("Bad request: %s", env.ErrorMessage)
+		}
+		return nil, fmt.Errorf("Problem updating post: %d. %s\n", status, env.ErrorMessage)
 	}
-	return nil, fmt.Errorf("Problem getting post: %d. %v\n", status, err)
+	return p, nil
 }
 
 // DeletePost permanently deletes a published post. See
@@ -160,7 +177,7 @@ func (c *Client) DeletePost(sp *PostParams) error {
 	} else if status == http.StatusBadRequest {
 		return fmt.Errorf("Bad request: %s", env.ErrorMessage)
 	}
-	return fmt.Errorf("Problem getting post: %d. %v\n", status, err)
+	return fmt.Errorf("Problem deleting post: %d. %s\n", status, env.ErrorMessage)
 }
 
 // ClaimPosts associates anonymous posts with a user / account.
@@ -185,7 +202,101 @@ func (c *Client) ClaimPosts(sp *[]OwnedPostParams) (*[]ClaimPostResult, error) {
 	} else if status == http.StatusBadRequest {
 		return nil, fmt.Errorf("Bad request: %s", env.ErrorMessage)
 	} else {
-		return nil, fmt.Errorf("Problem getting post: %d. %v\n", status, err)
+		return nil, fmt.Errorf("Problem claiming post: %d. %s\n", status, env.ErrorMessage)
 	}
 	// TODO: does this also happen with moving posts?
+}
+
+// GetUserPosts retrieves the authenticated user's posts.
+// See https://developers.write.as/docs/api/#retrieve-user-39-s-posts
+func (c *Client) GetUserPosts() (*[]Post, error) {
+	p := &[]Post{}
+	env, err := c.get("/me/posts", p)
+	if err != nil {
+		return nil, err
+	}
+
+	var ok bool
+	if p, ok = env.Data.(*[]Post); !ok {
+		return nil, fmt.Errorf("Wrong data returned from API.")
+	}
+	status := env.Code
+
+	if status != http.StatusOK {
+		if c.isNotLoggedIn(status) {
+			return nil, fmt.Errorf("Not authenticated.")
+		}
+		return nil, fmt.Errorf("Problem getting user posts: %d. %s\n", status, env.ErrorMessage)
+	}
+	return p, nil
+}
+
+// PinPost pins a post in the given collection.
+// See https://developers.write.as/docs/api/#pin-a-post-to-a-collection
+func (c *Client) PinPost(alias string, pp *PinnedPostParams) error {
+	res := &[]BatchPostResult{}
+	env, err := c.post(fmt.Sprintf("/collections/%s/pin", alias), []*PinnedPostParams{pp}, res)
+	if err != nil {
+		return err
+	}
+
+	var ok bool
+	if res, ok = env.Data.(*[]BatchPostResult); !ok {
+		return fmt.Errorf("Wrong data returned from API.")
+	}
+
+	// Check for basic request errors on top level response
+	status := env.Code
+	if status != http.StatusOK {
+		if c.isNotLoggedIn(status) {
+			return fmt.Errorf("Not authenticated.")
+		}
+		return fmt.Errorf("Problem pinning post: %d. %s\n", status, env.ErrorMessage)
+	}
+
+	// Check the individual post result
+	if len(*res) == 0 || len(*res) > 1 {
+		return fmt.Errorf("Wrong data returned from API.")
+	}
+	if (*res)[0].Code != http.StatusOK {
+		return fmt.Errorf("Problem pinning post: %d", (*res)[0].Code)
+		// TODO: return ErrorMessage (right now it'll be empty)
+		// return fmt.Errorf("Problem pinning post: %s", res[0].ErrorMessage)
+	}
+	return nil
+}
+
+// UnpinPost unpins a post from the given collection.
+// See https://developers.write.as/docs/api/#unpin-a-post-from-a-collection
+func (c *Client) UnpinPost(alias string, pp *PinnedPostParams) error {
+	res := &[]BatchPostResult{}
+	env, err := c.post(fmt.Sprintf("/collections/%s/unpin", alias), []*PinnedPostParams{pp}, res)
+	if err != nil {
+		return err
+	}
+
+	var ok bool
+	if res, ok = env.Data.(*[]BatchPostResult); !ok {
+		return fmt.Errorf("Wrong data returned from API.")
+	}
+
+	// Check for basic request errors on top level response
+	status := env.Code
+	if status != http.StatusOK {
+		if c.isNotLoggedIn(status) {
+			return fmt.Errorf("Not authenticated.")
+		}
+		return fmt.Errorf("Problem unpinning post: %d. %s\n", status, env.ErrorMessage)
+	}
+
+	// Check the individual post result
+	if len(*res) == 0 || len(*res) > 1 {
+		return fmt.Errorf("Wrong data returned from API.")
+	}
+	if (*res)[0].Code != http.StatusOK {
+		return fmt.Errorf("Problem unpinning post: %d", (*res)[0].Code)
+		// TODO: return ErrorMessage (right now it'll be empty)
+		// return fmt.Errorf("Problem unpinning post: %s", res[0].ErrorMessage)
+	}
+	return nil
 }

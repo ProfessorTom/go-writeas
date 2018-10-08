@@ -28,18 +28,43 @@ func (c *Client) LogIn(username, pass string) (*AuthUser, error) {
 	}
 
 	status := env.Code
-	if status == http.StatusOK {
-		return u, nil
-	} else if status == http.StatusBadRequest {
-		return nil, fmt.Errorf("Bad request: %s", env.ErrorMessage)
-	} else if status == http.StatusUnauthorized {
-		return nil, fmt.Errorf("Incorrect password.")
-	} else if status == http.StatusNotFound {
-		return nil, fmt.Errorf("User does not exist.")
-	} else if status == http.StatusTooManyRequests {
-		return nil, fmt.Errorf("Stop repeatedly trying to log in.")
+	if status != http.StatusOK {
+		if status == http.StatusBadRequest {
+			return nil, fmt.Errorf("Bad request: %s", env.ErrorMessage)
+		} else if status == http.StatusUnauthorized {
+			return nil, fmt.Errorf("Incorrect password.")
+		} else if status == http.StatusNotFound {
+			return nil, fmt.Errorf("User does not exist.")
+		} else if status == http.StatusTooManyRequests {
+			return nil, fmt.Errorf("Stop repeatedly trying to log in.")
+		}
+		return nil, fmt.Errorf("Problem authenticating: %d. %v\n", status, err)
 	}
-	return nil, fmt.Errorf("Problem authenticating: %d. %v\n", status, err)
+
+	c.SetToken(u.AccessToken)
+	return u, nil
+}
+
+// LogOut logs the current user out, making the Client's current access token
+// invalid.
+func (c *Client) LogOut() error {
+	env, err := c.delete("/auth/me", nil)
+	if err != nil {
+		return err
+	}
+
+	status := env.Code
+	if status != http.StatusNoContent {
+		if status == http.StatusNotFound {
+			return fmt.Errorf("Access token is invalid or doesn't exist")
+		}
+		return fmt.Errorf("Unable to log out: %v", env.ErrorMessage)
+	}
+
+	// Logout successful, so update the Client
+	c.token = ""
+
+	return nil
 }
 
 func (c *Client) isNotLoggedIn(code int) bool {

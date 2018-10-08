@@ -12,7 +12,7 @@ func TestGetCollection(t *testing.T) {
 	if err != nil {
 		t.Errorf("Unexpected fetch results: %+v, err: %v\n", res, err)
 	} else {
-		t.Logf("Post: %+v", res)
+		t.Logf("Collection: %+v", res)
 		if res.Title != "write.as" {
 			t.Errorf("Unexpected fetch results: %+v\n", res)
 		}
@@ -28,6 +28,25 @@ func TestGetCollectionPosts(t *testing.T) {
 	} else {
 		if len(*res) == 0 {
 			t.Errorf("No posts returned!")
+		}
+	}
+}
+
+func TestGetUserCollections(t *testing.T) {
+	wac := NewDevClient()
+	_, err := wac.LogIn("demo", "demo")
+	if err != nil {
+		t.Fatalf("Unable to log in: %v", err)
+	}
+	defer wac.LogOut()
+
+	res, err := wac.GetUserCollections()
+	if err != nil {
+		t.Errorf("Unexpected fetch results: %+v, err: %v\n", res, err)
+	} else {
+		t.Logf("User collections: %+v", res)
+		if len(*res) == 0 {
+			t.Errorf("No collections returned!")
 		}
 	}
 }

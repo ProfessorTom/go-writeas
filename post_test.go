@@ -23,11 +23,7 @@ func TestCreatePost(t *testing.T) {
 	token := p.Token
 
 	// Update post
-	p, err = wac.UpdatePost(&PostParams{
-		OwnedPostParams: OwnedPostParams{
-			ID:    p.ID,
-			Token: token,
-		},
+	p, err = wac.UpdatePost(p.ID, token, &PostParams{
 		Content: "Now it's been updated!",
 	})
 	if err != nil {
@@ -37,12 +33,7 @@ func TestCreatePost(t *testing.T) {
 	t.Logf("Post updated: %+v", p)
 
 	// Delete post
-	err = wac.DeletePost(&PostParams{
-		OwnedPostParams: OwnedPostParams{
-			ID:    p.ID,
-			Token: token,
-		},
-	})
+	err = wac.DeletePost(p.ID, token)
 	if err != nil {
 		t.Errorf("Post delete failed: %v", err)
 		return
@@ -70,6 +61,34 @@ func TestGetPost(t *testing.T) {
 		if !strings.HasPrefix(res.Content, "                               Write.as Blog") {
 			t.Errorf("Unexpected fetch results: %+v\n", res)
 		}
+	}
+}
+
+func TestPinPost(t *testing.T) {
+	dwac := NewDevClient()
+	_, err := dwac.LogIn("demo", "demo")
+	if err != nil {
+		t.Fatalf("Unable to log in: %v", err)
+	}
+	defer dwac.LogOut()
+
+	err = dwac.PinPost("tester", &PinnedPostParams{ID: "olx6uk7064heqltf"})
+	if err != nil {
+		t.Fatalf("Pin failed: %v", err)
+	}
+}
+
+func TestUnpinPost(t *testing.T) {
+	dwac := NewDevClient()
+	_, err := dwac.LogIn("demo", "demo")
+	if err != nil {
+		t.Fatalf("Unable to log in: %v", err)
+	}
+	defer dwac.LogOut()
+
+	err = dwac.UnpinPost("tester", &PinnedPostParams{ID: "olx6uk7064heqltf"})
+	if err != nil {
+		t.Fatalf("Unpin failed: %v", err)
 	}
 }
 

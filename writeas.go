@@ -3,6 +3,7 @@ package writeas
 
 import (
 	"bytes"
+	"code.as/core/socks"
 	"encoding/json"
 	"fmt"
 	"github.com/writeas/impart"
@@ -14,6 +15,7 @@ import (
 const (
 	apiURL    = "https://write.as/api"
 	devAPIURL = "https://development.write.as/api"
+	torAPIURL = "http://writeas7pm7rcdqg.onion/api"
 )
 
 // Client is used to interact with the Write.as API. It can be used to make
@@ -25,6 +27,9 @@ type Client struct {
 	token string
 	// Client making requests to the API
 	client *http.Client
+
+	// UserAgent overrides the default User-Agent header
+	UserAgent string
 }
 
 // defaultHTTPTimeout is the default http.Client timeout.
@@ -42,6 +47,18 @@ func NewClient() *Client {
 	}
 }
 
+// NewTorClient creates a new API client for communicating with the Write.as
+// Tor hidden service, using the given port to connect to the local SOCKS
+// proxy.
+func NewTorClient(port int) *Client {
+	dialSocksProxy := socks.DialSocksProxy(socks.SOCKS5, fmt.Sprintf("127.0.0.1:%d", port))
+	transport := &http.Transport{Dial: dialSocksProxy}
+	return &Client{
+		client:  &http.Client{Transport: transport},
+		baseURL: torAPIURL,
+	}
+}
+
 // NewDevClient creates a new API client for development and testing. It'll
 // communicate with our development servers, and SHOULD NOT be used in
 // production.
@@ -56,6 +73,11 @@ func NewDevClient() *Client {
 // an empty string will change back to unauthenticated requests.
 func (c *Client) SetToken(token string) {
 	c.token = token
+}
+
+// Token returns the user token currently set to the Client.
+func (c *Client) Token() string {
+	return c.token
 }
 
 func (c *Client) get(path string, r interface{}) (*impart.Envelope, error) {
@@ -137,7 +159,11 @@ func (c *Client) doRequest(r *http.Request, result interface{}) (*impart.Envelop
 }
 
 func (c *Client) prepareRequest(r *http.Request) {
-	r.Header.Add("User-Agent", "go-writeas v1")
+	ua := c.UserAgent
+	if ua == "" {
+		ua = "go-writeas v1"
+	}
+	r.Header.Add("User-Agent", ua)
 	r.Header.Add("Content-Type", "application/json")
 	if c.token != "" {
 		r.Header.Add("Authorization", "Token "+c.token)

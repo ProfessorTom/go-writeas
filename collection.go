@@ -17,6 +17,7 @@ type (
 		Views       int64  `json:"views"`
 		Domain      string `json:"domain,omitempty"`
 		Email       string `json:"email,omitempty"`
+		URL         string `json:"url,omitempty"`
 
 		TotalPosts int `json:"total_posts"`
 
@@ -46,18 +47,19 @@ func (c *Client) CreateCollection(sp *CollectionParams) (*Collection, error) {
 	}
 
 	status := env.Code
-	if status == http.StatusCreated {
-		return p, nil
-	} else if status == http.StatusBadRequest {
-		return nil, fmt.Errorf("Bad request: %s", env.ErrorMessage)
-	} else if status == http.StatusForbidden {
-		return nil, fmt.Errorf("Casual or Pro user required.")
-	} else if status == http.StatusConflict {
-		return nil, fmt.Errorf("Collection name is already taken.")
-	} else if status == http.StatusPreconditionFailed {
-		return nil, fmt.Errorf("Reached max collection quota.")
+	if status != http.StatusCreated {
+		if status == http.StatusBadRequest {
+			return nil, fmt.Errorf("Bad request: %s", env.ErrorMessage)
+		} else if status == http.StatusForbidden {
+			return nil, fmt.Errorf("Casual or Pro user required.")
+		} else if status == http.StatusConflict {
+			return nil, fmt.Errorf("Collection name is already taken.")
+		} else if status == http.StatusPreconditionFailed {
+			return nil, fmt.Errorf("Reached max collection quota.")
+		}
+		return nil, fmt.Errorf("Problem getting post: %d. %v\n", status, err)
 	}
-	return nil, fmt.Errorf("Problem getting post: %d. %v\n", status, err)
+	return p, nil
 }
 
 // GetCollection retrieves a collection, returning the Collection and any error
@@ -108,4 +110,28 @@ func (c *Client) GetCollectionPosts(alias string) (*[]Post, error) {
 	} else {
 		return nil, fmt.Errorf("Problem getting collection: %d. %v\n", status, err)
 	}
+}
+
+// GetUserCollections retrieves the authenticated user's collections.
+// See https://developers.write.as/docs/api/#retrieve-user-39-s-collections
+func (c *Client) GetUserCollections() (*[]Collection, error) {
+	colls := &[]Collection{}
+	env, err := c.get("/me/collections", colls)
+	if err != nil {
+		return nil, err
+	}
+
+	var ok bool
+	if colls, ok = env.Data.(*[]Collection); !ok {
+		return nil, fmt.Errorf("Wrong data returned from API.")
+	}
+	status := env.Code
+
+	if status != http.StatusOK {
+		if c.isNotLoggedIn(status) {
+			return nil, fmt.Errorf("Not authenticated.")
+		}
+		return nil, fmt.Errorf("Problem getting collections: %d. %v\n", status, err)
+	}
+	return colls, nil
 }
