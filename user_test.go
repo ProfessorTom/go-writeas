@@ -11,7 +11,7 @@ const (
 	devPW = "RGX-SQg-a7m-4pV"
 )
 
-func CreateSessionForTestUser() (*Client, error) {
+func createSessionForTestUser() (*Client, error) {
 	dwac := NewDevClient()
 
 	au, err := dwac.LogIn(devUN, devPW)
@@ -24,7 +24,7 @@ func CreateSessionForTestUser() (*Client, error) {
 	return dwac, nil
 }
 
-func DeleteAllPosts() (*Client, error) {
+func deleteAllPosts() (*Client, error) {
 	dwac, err := CreateSessionForTestUser()
 	if err != nil {
 		return nil, fmt.Errorf("%s", err)
@@ -40,11 +40,7 @@ func DeleteAllPosts() (*Client, error) {
 	if count != 0 {
 		for i := 0; i < count; i++ {
 			// Delete post
-			err = dwac.DeletePost(&PostParams{
-				OwnedPostParams: OwnedPostParams{
-					ID: (*p)[i].ID,
-				},
-			})
+			err = dwac.DeletePost((*p)[i].ID, dwac.token)
 			if err != nil {
 				return nil, fmt.Errorf("Post delete failed: %v", err)
 			}
@@ -54,7 +50,7 @@ func DeleteAllPosts() (*Client, error) {
 	return dwac, nil
 }
 
-func CreateMultiplePosts(c *Client) (*[]PostParams, error) {
+func createMultiplePosts(c *Client) (*[]PostParams, error) {
 	pp := &[]PostParams{
 		PostParams{
 			Title:   "Familar Song",
@@ -90,7 +86,7 @@ func CreateMultiplePosts(c *Client) (*[]PostParams, error) {
 	return pp, nil
 }
 
-func GetPostParamsFromPostArray(p *[]Post) *[]PostParams {
+func getPostParamsFromPostArray(p *[]Post) *[]PostParams {
 	pp := make([]PostParams, len(*p))
 
 	for i := 0; i < len(*p); i++ {
@@ -106,7 +102,7 @@ func GetPostParamsFromPostArray(p *[]Post) *[]PostParams {
 	return &pp
 }
 
-func ReverseSlice(epp *[]PostParams) {
+func reverseSlice(epp *[]PostParams) {
 	for i, j := 0, len(*epp)-1; i < j; i, j = i+1, j-1 {
 		(*epp)[i], (*epp)[j] = (*epp)[j], (*epp)[i]
 	}
@@ -114,7 +110,7 @@ func ReverseSlice(epp *[]PostParams) {
 	// fmt.Printf("reversed: %s", PrintSlice(epp))
 }
 
-func PrintSlice(pp *[]PostParams) string {
+func printSlice(pp *[]PostParams) string {
 	var buffer bytes.Buffer
 
 	for i := 0; i < len(*pp); i++ {
